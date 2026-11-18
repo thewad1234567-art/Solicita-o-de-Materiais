@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solicitação de Materiais</title>
+  <style>
+    /* ==========================================================
+       ÁREA DE ESTILO (CORES E TAMANHOS) - EDITE AQUI SE QUISER
+       ========================================================== */
+    :root {
+      --cor-principal: #0056b3; /* Cor do cabeçalho e botão */
+      --cor-fundo: #f4f6f9;     /* Cor de fundo da página */
+      --cor-card: #ffffff;      /* Cor da caixa do formulário */
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: var(--cor-fundo);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      background-color: var(--cor-card);
+      width: 100%;
+      max-width: 550px;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      color: var(--cor-principal);
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .protocolo-box {
+      background-color: #e9ecef;
+      padding: 12px;
+      border-radius: 5px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 1.1em;
+      color: #333;
+      margin-bottom: 20px;
+      border-left: 5px solid var(--cor-principal);
+    }
+
+    .campo {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: #333;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: var(--cor-principal);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+
+    #mensagem-status {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 4px;
+      display: none;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .sucesso { background-color: #d4edda; color: #155724; }
+    .erro { background-color: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- TÍTULO DA PÁGINA -->
+  <h2>Solicitação de Materiais</h2>
+
+  <!-- EXIBIÇÃO DO PROTOCOLO AUTOMÁTICO -->
+  <div class="protocolo-box">
+    Nº da Solicitação: <span id="numero-protocolo">Carregando...</span>
+  </div>
+
+  <!-- FORMULÁRIO -->
+  <form id="form-solicitacao">
+    
+    <div class="campo">
+      <label for="solicitante">Nome do Solicitante *</label>
+      <input type="text" id="solicitante" required placeholder="Digite seu nome completo">
+    </div>
+
+    <div class="campo">
+      <label for="setor">Setor / Ordem de Serviço (OS) *</label>
+      <input type="text" id="setor" required placeholder="Ex: Manutenção Mecânica / OS 1234">
+    </div>
+
+    <div class="campo">
+      <label for="material">Descrição do Material *</label>
+      <textarea id="material" rows="3" required placeholder="Descreva o material, medida, modelo..."></textarea>
+    </div>
+
+    <div class="campo">
+      <label for="quantidade">Quantidade e Unidade *</label>
+      <input type="text" id="quantidade" required placeholder="Ex: 5 peças, 2 caixas, 10 metros">
+    </div>
+
+    <div class="campo">
+      <label for="observacoes">Observações (Opcional)</label>
+      <input type="text" id="observacoes" placeholder="Urgência, local de entrega, etc.">
+    </div>
+
+    <button type="submit" id="btn-enviar">Enviar Solicitação</button>
+  </form>
+
+  <div id="mensagem-status"></div>
+</div>
+
+<script>
+  /* ==========================================================
+     CONFIGURAÇÃO DA PLANILHA - COLE SUA URL DO APPS SCRIPT ABAIXO
+     ========================================================== */
+  const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwn0heFwzZA0vg7pgKuHetv2_HnExpQNADDDqvRprTp6zhRbAafpqA7sCDOKuod9GYN/exec";
+
+  const spanProtocolo = document.getElementById("numero-protocolo");
+  const form = document.getElementById("form-solicitacao");
+  const btnEnviar = document.getElementById("btn-enviar");
+  const msgStatus = document.getElementById("mensagem-status");
+
+  // 1. Busca o próximo número de solicitação assim que a página abre
+  async function carregarProtocolo() {
+    spanProtocolo.innerText = "Gerando código...";
+    try {
+      const resposta = await fetch(URL_SCRIPT);
+      const dados = await resposta.json();
+      spanProtocolo.innerText = dados.protocolo;
+    } catch (erro) {
+      spanProtocolo.innerText = "SOL-XXXX (Será gerado ao enviar)";
+    }
+  }
+
+  // Executa ao abrir a página
+  carregarProtocolo();
+
+  // 2. Envia os dados quando o usuário clica em "Enviar"
+  form.addEventListener("submit", async function(e) {
+    e.preventDefault();
+    
+    btnEnviar.disabled = true;
+    btnEnviar.innerText = "Enviando...";
+    msgStatus.style.display = "none";
+
+    const payload = {
+      solicitante: document.getElementById("solicitante").value,
+      setor: document.getElementById("setor").value,
+      material: document.getElementById("material").value,
+      quantidade: document.getElementById("quantidade").value,
+      observacoes: document.getElementById("observacoes").value
+    };
+
+    try {
+      const resposta = await fetch(URL_SCRIPT, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      
+      const resultado = await resposta.json();
+
+      if (resultado.status === "sucesso") {
+        msgStatus.className = "sucesso";
+        msgStatus.innerText = `Solicitação enviada com sucesso! Protocolo registrado: ${resultado.protocolo}`;
+        msgStatus.style.display = "block";
+        form.reset();
+        carregarProtocolo(); // Atualiza para o próximo número na tela
+      } else {
+        throw new Error(resultado.mensagem);
+      }
+    } catch (erro) {
+      msgStatus.className = "erro";
+      msgStatus.innerText = "Erro ao enviar solicitação. Tente novamente.";
+      msgStatus.style.display = "block";
+    } finally {
+      btnEnviar.disabled = false;
+      btnEnviar.innerText = "Enviar Solicitação";
+    }
+  });
+</script>
+
+</body>
+</html>
