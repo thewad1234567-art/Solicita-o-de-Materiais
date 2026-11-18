@@ -10,14 +10,21 @@
        ========================================================== */
     :root {
       --cor-principal: #0056b3; /* Cor do cabeçalho e botão */
-      --cor-fundo: #f4f6f9;     /* Cor de fundo da página */
+      --cor-fundo: #f4f6f9;     /* Cor de fundo da página (servirá de apoio se a imagem falhar) */
       --cor-card: #ffffff;      /* Cor da caixa do formulário */
+      --imagem-fundo: url('https://anamaco.com.br/wp-content/uploads/2024/03/94de94_89d8ec4f327546c59567a9ffebff5796mv2.webp'); 
     }
 
     body {
       font-family: Arial, sans-serif;
       background-color: var(--cor-fundo);
+      background-image: var(--imagem-fundo);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
       margin: 0;
+      min-height: 100vh;
       padding: 20px;
       display: flex;
       justify-content: center;
@@ -68,6 +75,13 @@
       border-radius: 4px;
       box-sizing: border-box;
       font-size: 14px;
+      background-color: #fff;
+    }
+
+    select:disabled {
+      background-color: #e9ecef;
+      cursor: not-allowed;
+      color: #6c757d;
     }
 
     button {
@@ -123,6 +137,24 @@
       <input type="text" id="solicitante" required placeholder="Digite seu nome completo">
     </div>
 
+    <!-- NOVO CAMPO: PROJETO -->
+    <div class="campo">
+      <label for="projeto">Projeto *</label>
+      <select id="projeto" required>
+        <option value="" disabled selected>Selecione o Projeto...</option>
+        <option value="PortoCem">PortoCem</option>
+        <option value="Novo Tempo">Novo Tempo</option>
+      </select>
+    </div>
+
+    <!-- NOVO CAMPO: E-MAIL PARA VALIDAÇÃO -->
+    <div class="campo">
+      <label for="email-validacao">E-mail para Validação do Pedido <span id="asterisco-email">*</span></label>
+      <select id="email-validacao" disabled required>
+        <option value="" disabled selected>Selecione primeiro um Projeto...</option>
+      </select>
+    </div>
+
     <div class="campo">
       <label for="setor">Setor / Ordem de Serviço (OS) *</label>
       <input type="text" id="setor" required placeholder="Ex: Manutenção Mecânica / OS 1234">
@@ -155,10 +187,68 @@
      ========================================================== */
   const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwn0heFwzZA0vg7pgKuHetv2_HnExpQNADDDqvRprTp6zhRbAafpqA7sCDOKuod9GYN/exec";
 
+  /* ==========================================================
+     LISTA DE E-MAILS POR PROJETO - EDITE OS E-MAILS REAIS AQUI
+     ========================================================== */
+  const EMAILS_POR_PROJETO = {
+    "PortoCem": [
+      "aprovador1.portocem@empresa.com.br",
+      "aprovador2.portocem@empresa.com.br",
+      "suprimentos.portocem@empresa.com.br"
+    ],
+    "Novo Tempo": [
+      "mateus.silva@ompower.us",
+      "aprovador2.novotempo@empresa.com.br",
+      "suprimentos.novotempo@empresa.com.br"
+    ]
+  };
+
   const spanProtocolo = document.getElementById("numero-protocolo");
   const form = document.getElementById("form-solicitacao");
   const btnEnviar = document.getElementById("btn-enviar");
   const msgStatus = document.getElementById("mensagem-status");
+  
+  const selectProjeto = document.getElementById("projeto");
+  const selectEmail = document.getElementById("email-validacao");
+
+  // Atualiza a lista de e-mails conforme o Projeto selecionado
+  selectProjeto.addEventListener("change", function() {
+    const projetoSelecionado = this.value;
+    
+    // Limpa as opções anteriores
+    selectEmail.innerHTML = "";
+
+    if (projetoSelecionado && EMAILS_POR_PROJETO[projetoSelecionado]) {
+      // Habilita e torna obrigatório
+      selectEmail.disabled = false;
+      selectEmail.required = true;
+
+      // Opção padrão
+      const optPadrao = document.createElement("option");
+      optPadrao.value = "";
+      optPadrao.disabled = true;
+      optPadrao.selected = true;
+      optPadrao.textContent = "Selecione o e-mail validador...";
+      selectEmail.appendChild(optPadrao);
+
+      // Adiciona os e-mails correspondentes ao projeto
+      EMAILS_POR_PROJETO[projetoSelecionado].forEach(email => {
+        const option = document.createElement("option");
+        option.value = email;
+        option.textContent = email;
+        selectEmail.appendChild(option);
+      });
+    } else {
+      selectEmail.disabled = true;
+      selectEmail.required = false;
+      const optBloqueado = document.createElement("option");
+      optBloqueado.value = "";
+      optBloqueado.disabled = true;
+      optBloqueado.selected = true;
+      optBloqueado.textContent = "Selecione primeiro um Projeto...";
+      selectEmail.appendChild(optBloqueado);
+    }
+  });
 
   // 1. Busca o próximo número de solicitação assim que a página abre
   async function carregarProtocolo() {
@@ -179,12 +269,22 @@
   form.addEventListener("submit", async function(e) {
     e.preventDefault();
     
+    // Validação extra de segurança para Projeto e E-mail
+    if (!selectProjeto.value || !selectEmail.value) {
+      msgStatus.className = "erro";
+      msgStatus.innerText = "Por favor, selecione o Projeto e o E-mail para validação.";
+      msgStatus.style.display = "block";
+      return;
+    }
+
     btnEnviar.disabled = true;
     btnEnviar.innerText = "Enviando...";
     msgStatus.style.display = "none";
 
     const payload = {
       solicitante: document.getElementById("solicitante").value,
+      projeto: selectProjeto.value,
+      emailValidacao: selectEmail.value,
       setor: document.getElementById("setor").value,
       material: document.getElementById("material").value,
       quantidade: document.getElementById("quantidade").value,
@@ -204,6 +304,11 @@
         msgStatus.innerText = `Solicitação enviada com sucesso! Protocolo registrado: ${resultado.protocolo}`;
         msgStatus.style.display = "block";
         form.reset();
+        
+        // Reseta o campo de e-mail para o estado bloqueado inicial
+        selectEmail.disabled = true;
+        selectEmail.innerHTML = '<option value="" disabled selected>Selecione primeiro um Projeto...</option>';
+        
         carregarProtocolo(); // Atualiza para o próximo número na tela
       } else {
         throw new Error(resultado.mensagem);
