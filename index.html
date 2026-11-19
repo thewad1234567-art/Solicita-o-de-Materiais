@@ -10,9 +10,9 @@
        ÁREA DE ESTILO (CORES E TAMANHOS) - EDITE AQUI SE QUISER
        ========================================================== */
     :root {
-      --cor-principal: #0056b3; /* Cor do cabeçalho e botão */
-      --cor-fundo: #f4f6f9;     /* Cor de fundo da página (servirá de apoio se a imagem falhar) */
-      --cor-card: #ffffff;      /* Cor da caixa do formulário */
+      --cor-principal: #0056b3;
+      --cor-fundo: #f4f6f9;
+      --cor-card: #ffffff;
       --imagem-fundo: url('Fundo.png'); 
     }
 
@@ -69,7 +69,7 @@
       color: #333;
     }
 
-    input, select, textarea {
+    input[type="text"], select, textarea {
       width: 100%;
       padding: 10px;
       border: 1px solid #ccc;
@@ -80,20 +80,60 @@
     }
 
     input[type="file"] {
+      width: 100%;
       padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
       background-color: #f8f9fa;
+    }
+
+    /* Estilo da caixa de múltipla seleção de e-mails */
+    .lista-emails-box {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 10px;
+      background-color: #fff;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .lista-emails-box.desabilitado {
+      background-color: #e9ecef;
+      color: #6c757d;
+      font-size: 14px;
+    }
+
+    .item-email {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 4px;
+      border-bottom: 1px solid #f1f1f1;
+      font-weight: normal;
+      cursor: pointer;
+      margin-bottom: 0;
+    }
+
+    .item-email:last-child {
+      border-bottom: none;
+    }
+
+    .item-email:hover {
+      background-color: #f8f9fa;
+    }
+
+    .item-email input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      margin: 0;
     }
 
     .ajuda-campo {
       display: block;
       margin-top: 4px;
       font-size: 12px;
-      color: #6c757d;
-    }
-
-    select:disabled {
-      background-color: #e9ecef;
-      cursor: not-allowed;
       color: #6c757d;
     }
 
@@ -134,15 +174,12 @@
 <body>
 
 <div class="container">
-  <!-- TÍTULO DA PÁGINA -->
   <h2>Solicitação de Materiais</h2>
 
-  <!-- EXIBIÇÃO DO PROTOCOLO AUTOMÁTICO -->
   <div class="protocolo-box">
     Nº da Solicitação: <span id="numero-protocolo">Será gerado ao enviar</span>
   </div>
 
-  <!-- FORMULÁRIO -->
   <form id="form-solicitacao">
     
     <div class="campo">
@@ -160,12 +197,12 @@
       </select>
     </div>
 
-    <!-- E-MAIL PARA VALIDAÇÃO -->
+    <!-- E-MAILS PARA VALIDAÇÃO (MÚLTIPLA ESCOLHA) -->
     <div class="campo">
-      <label for="email-validacao">E-mail para Validação do Pedido <span id="asterisco-email">*</span></label>
-      <select id="email-validacao" disabled required>
-        <option value="" disabled selected>Selecione primeiro um Projeto...</option>
-      </select>
+      <label>E-mails para Validação do Pedido * <small style="font-weight: normal; color: #666;">(Marque um ou mais)</small></label>
+      <div id="container-emails" class="lista-emails-box desabilitado">
+        Selecione primeiro um Projeto...
+      </div>
     </div>
 
     <div class="campo">
@@ -192,7 +229,7 @@
     <div class="campo">
       <label for="anexo">Anexo (Opcional — foto, desenho técnico, PDF ou planilha)</label>
       <input type="file" id="anexo" accept=".pdf,.png,.jpg,.jpeg,.webp,.xls,.xlsx,.csv,.doc,.docx">
-      <small id="info-anexo" class="ajuda-campo">Tamanho máximo recomendado: 5 MB.</small>
+      <small id="info-anexo" class="ajuda-campo">Tamanho máximo recomendado: 15 MB.</small>
     </div>
 
     <button type="submit" id="btn-enviar">Enviar Solicitação</button>
@@ -202,21 +239,20 @@
 </div>
 
 <script>
-  /* ==========================================================
-     CONFIGURAÇÃO DA PLANILHA - COLE SUA URL DO APPS SCRIPT ABAIXO
-     ========================================================== */
   const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwn0heFwzZA0vg7pgKuHetv2_HnExpQNADDDqvRprTp6zhRbAafpqA7sCDOKuod9GYN/exec";
   const TAMANHO_MAX_MB = 15;
 
   /* ==========================================================
-     LISTA DE E-MAILS POR PROJETO - EDITE OS E-MAILS REAIS AQUI
+     LISTA DE E-MAILS POR PROJETO - ADICIONE QUANTOS QUISER AQUI
      ========================================================== */
   const EMAILS_POR_PROJETO = {
     "PortoCem": [
       "aprovador1.portocem@empresa.com.br",
+      "aprovador2.portocem@empresa.com.br"
     ],
     "Novo Tempo": [
       "mateus.silva@ompower.us",
+      "mateussilva141997@gmail.com"
     ]
   };
 
@@ -226,18 +262,16 @@
   const msgStatus = document.getElementById("mensagem-status");
   
   const selectProjeto = document.getElementById("projeto");
-  const selectEmail = document.getElementById("email-validacao");
+  const containerEmails = document.getElementById("container-emails");
   const inputSetor = document.getElementById("setor");
   const inputAnexo = document.getElementById("anexo");
   const infoAnexo = document.getElementById("info-anexo");
 
-  // Converte um File em objeto { nome, tipo, base64 }
   function lerArquivoComoBase64(arquivo) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const resultado = String(reader.result || "");
-        // Remove o prefixo "data:tipo/mime;base64," deixando só o conteúdo base64
         const base64Puro = resultado.includes(",") ? resultado.split(",")[1] : resultado;
         resolve({
           nome: arquivo.name,
@@ -250,7 +284,6 @@
     });
   }
 
-  // Valida tamanho ao selecionar arquivo
   inputAnexo.addEventListener("change", function() {
     const arquivo = this.files[0];
     if (!arquivo) {
@@ -270,38 +303,35 @@
     }
   });
 
-  // Atualiza a lista de e-mails conforme o Projeto selecionado
+  // Gera os checkboxes de e-mail conforme o Projeto selecionado
   selectProjeto.addEventListener("change", function() {
     const projetoSelecionado = this.value;
-    
-    selectEmail.innerHTML = "";
+    containerEmails.innerHTML = "";
 
     if (projetoSelecionado && EMAILS_POR_PROJETO[projetoSelecionado]) {
-      selectEmail.disabled = false;
-      selectEmail.required = true;
+      containerEmails.classList.remove("desabilitado");
 
-      const optPadrao = document.createElement("option");
-      optPadrao.value = "";
-      optPadrao.disabled = true;
-      optPadrao.selected = true;
-      optPadrao.textContent = "Selecione o e-mail validador...";
-      selectEmail.appendChild(optPadrao);
+      EMAILS_POR_PROJETO[projetoSelecionado].forEach((email, index) => {
+        const label = document.createElement("label");
+        label.className = "item-email";
+        label.htmlFor = `chk-email-${index}`;
 
-      EMAILS_POR_PROJETO[projetoSelecionado].forEach(email => {
-        const option = document.createElement("option");
-        option.value = email;
-        option.textContent = email;
-        selectEmail.appendChild(option);
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.id = `chk-email-${index}`;
+        checkbox.name = "emailsValidacao";
+        checkbox.value = email;
+
+        const texto = document.createElement("span");
+        texto.textContent = email;
+
+        label.appendChild(checkbox);
+        label.appendChild(texto);
+        containerEmails.appendChild(label);
       });
     } else {
-      selectEmail.disabled = true;
-      selectEmail.required = false;
-      const optBloqueado = document.createElement("option");
-      optBloqueado.value = "";
-      optBloqueado.disabled = true;
-      optBloqueado.selected = true;
-      optBloqueado.textContent = "Selecione primeiro um Projeto...";
-      selectEmail.appendChild(optBloqueado);
+      containerEmails.classList.add("desabilitado");
+      containerEmails.textContent = "Selecione primeiro um Projeto...";
     }
   });
 
@@ -309,9 +339,13 @@
   form.addEventListener("submit", async function(e) {
     e.preventDefault();
     
-    if (!selectProjeto.value || !selectEmail.value) {
+    // Coleta todos os checkboxes marcados
+    const checkboxesMarcados = document.querySelectorAll('input[name="emailsValidacao"]:checked');
+    const listaEmailsSelecionados = Array.from(checkboxesMarcados).map(cb => cb.value);
+
+    if (!selectProjeto.value || listaEmailsSelecionados.length === 0) {
       msgStatus.className = "erro";
-      msgStatus.innerText = "Por favor, selecione o Projeto e o E-mail para validação.";
+      msgStatus.innerText = "Por favor, selecione o Projeto e marque pelo menos um E-mail para validação.";
       msgStatus.style.display = "block";
       return;
     }
@@ -341,15 +375,16 @@
     btnEnviar.innerText = "Enviando...";
     msgStatus.style.display = "none";
 
+    // Junta os e-mails marcados separados por vírgula (ex: "a@ompower.us, b@ompower.us")
     const payload = {
       solicitante: document.getElementById("solicitante").value,
       projeto: selectProjeto.value,
-      emailValidacao: selectEmail.value,
+      emailValidacao: listaEmailsSelecionados.join(", "),
       setor: inputSetor.value,
       material: document.getElementById("material").value,
       quantidade: document.getElementById("quantidade").value,
       observacoes: document.getElementById("observacoes").value,
-      anexo: dadosAnexo // null se não houver arquivo, ou { nome, tipo, base64 }
+      anexo: dadosAnexo
     };
 
     try {
@@ -371,8 +406,8 @@
         infoAnexo.textContent = `Tamanho máximo recomendado: ${TAMANHO_MAX_MB} MB.`;
         infoAnexo.style.color = "#6c757d";
         
-        selectEmail.disabled = true;
-        selectEmail.innerHTML = '<option value="" disabled selected>Selecione primeiro um Projeto...</option>';
+        containerEmails.classList.add("desabilitado");
+        containerEmails.textContent = "Selecione primeiro um Projeto...";
       } else {
         throw new Error(resultado.mensagem);
       }
