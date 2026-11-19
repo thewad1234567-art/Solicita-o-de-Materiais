@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Solicitação de Materiais</title>
+  <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZDqdnkkfQbPhCofrswyS-OckpizFGEXCBZ9CGmxDKVw&s=10">
   <style>
     /* ==========================================================
        ÁREA DE ESTILO (CORES E TAMANHOS) - EDITE AQUI SE QUISER
@@ -12,7 +13,7 @@
       --cor-principal: #0056b3; /* Cor do cabeçalho e botão */
       --cor-fundo: #f4f6f9;     /* Cor de fundo da página (servirá de apoio se a imagem falhar) */
       --cor-card: #ffffff;      /* Cor da caixa do formulário */
-      --imagem-fundo: url('https://anamaco.com.br/wp-content/uploads/2024/03/94de94_89d8ec4f327546c59567a9ffebff5796mv2.webp'); 
+      --imagem-fundo: url('https://portalbarcarena.com.br/uploads/DJI_0737-scaled.jpg'); 
     }
 
     body {
@@ -24,7 +25,7 @@
       background-repeat: no-repeat;
       background-attachment: fixed;
       margin: 0;
-      min-height: 100vh;
+      min-height: 95vh;
       padding: 20px;
       display: flex;
       justify-content: center;
@@ -33,10 +34,10 @@
     .container {
       background-color: var(--cor-card);
       width: 100%;
-      max-width: 550px;
+      max-width: 700px;
       padding: 30px;
       border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 10px rgba(19, 0, 0, 0.1);
     }
 
     h2 {
@@ -76,6 +77,18 @@
       box-sizing: border-box;
       font-size: 14px;
       background-color: #fff;
+    }
+
+    input[type="file"] {
+      padding: 8px;
+      background-color: #f8f9fa;
+    }
+
+    .ajuda-campo {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      color: #6c757d;
     }
 
     select:disabled {
@@ -126,7 +139,7 @@
 
   <!-- EXIBIÇÃO DO PROTOCOLO AUTOMÁTICO -->
   <div class="protocolo-box">
-    Nº da Solicitação: <span id="numero-protocolo">Carregando...</span>
+    Nº da Solicitação: <span id="numero-protocolo">Será gerado ao enviar</span>
   </div>
 
   <!-- FORMULÁRIO -->
@@ -137,17 +150,17 @@
       <input type="text" id="solicitante" required placeholder="Digite seu nome completo">
     </div>
 
-    <!-- NOVO CAMPO: PROJETO -->
+    <!-- PROJETO -->
     <div class="campo">
       <label for="projeto">Projeto *</label>
       <select id="projeto" required>
         <option value="" disabled selected>Selecione o Projeto...</option>
-        <option value="PortoCem">PortoCem</option>
-        <option value="Novo Tempo">Novo Tempo</option>
+        <option value="PortoCem">UTE - PortoCem</option>
+        <option value="Novo Tempo">UTE - Novo Tempo Barcarena</option>
       </select>
     </div>
 
-    <!-- NOVO CAMPO: E-MAIL PARA VALIDAÇÃO -->
+    <!-- E-MAIL PARA VALIDAÇÃO -->
     <div class="campo">
       <label for="email-validacao">E-mail para Validação do Pedido <span id="asterisco-email">*</span></label>
       <select id="email-validacao" disabled required>
@@ -175,6 +188,13 @@
       <input type="text" id="observacoes" placeholder="Urgência, local de entrega, etc.">
     </div>
 
+    <!-- ANEXO (OPCIONAL) -->
+    <div class="campo">
+      <label for="anexo">Anexo (Opcional — foto, desenho técnico, PDF ou planilha)</label>
+      <input type="file" id="anexo" accept=".pdf,.png,.jpg,.jpeg,.webp,.xls,.xlsx,.csv,.doc,.docx">
+      <small id="info-anexo" class="ajuda-campo">Tamanho máximo recomendado: 5 MB.</small>
+    </div>
+
     <button type="submit" id="btn-enviar">Enviar Solicitação</button>
   </form>
 
@@ -186,6 +206,7 @@
      CONFIGURAÇÃO DA PLANILHA - COLE SUA URL DO APPS SCRIPT ABAIXO
      ========================================================== */
   const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwn0heFwzZA0vg7pgKuHetv2_HnExpQNADDDqvRprTp6zhRbAafpqA7sCDOKuod9GYN/exec";
+  const TAMANHO_MAX_MB = 15;
 
   /* ==========================================================
      LISTA DE E-MAILS POR PROJETO - EDITE OS E-MAILS REAIS AQUI
@@ -193,13 +214,9 @@
   const EMAILS_POR_PROJETO = {
     "PortoCem": [
       "aprovador1.portocem@empresa.com.br",
-      "aprovador2.portocem@empresa.com.br",
-      "suprimentos.portocem@empresa.com.br"
     ],
     "Novo Tempo": [
       "mateus.silva@ompower.us",
-      "aprovador2.novotempo@empresa.com.br",
-      "suprimentos.novotempo@empresa.com.br"
     ]
   };
 
@@ -210,20 +227,59 @@
   
   const selectProjeto = document.getElementById("projeto");
   const selectEmail = document.getElementById("email-validacao");
+  const inputSetor = document.getElementById("setor");
+  const inputAnexo = document.getElementById("anexo");
+  const infoAnexo = document.getElementById("info-anexo");
+
+  // Converte um File em objeto { nome, tipo, base64 }
+  function lerArquivoComoBase64(arquivo) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const resultado = String(reader.result || "");
+        // Remove o prefixo "data:tipo/mime;base64," deixando só o conteúdo base64
+        const base64Puro = resultado.includes(",") ? resultado.split(",")[1] : resultado;
+        resolve({
+          nome: arquivo.name,
+          tipo: arquivo.type || "application/octet-stream",
+          base64: base64Puro
+        });
+      };
+      reader.onerror = () => reject(new Error("Falha ao ler o arquivo anexado."));
+      reader.readAsDataURL(arquivo);
+    });
+  }
+
+  // Valida tamanho ao selecionar arquivo
+  inputAnexo.addEventListener("change", function() {
+    const arquivo = this.files[0];
+    if (!arquivo) {
+      infoAnexo.textContent = `Tamanho máximo recomendado: ${TAMANHO_MAX_MB} MB.`;
+      infoAnexo.style.color = "#6c757d";
+      return;
+    }
+
+    const tamanhoMB = arquivo.size / (1024 * 1024);
+    if (tamanhoMB > TAMANHO_MAX_MB) {
+      infoAnexo.textContent = `Arquivo muito grande (${tamanhoMB.toFixed(2)} MB). Máximo permitido: ${TAMANHO_MAX_MB} MB.`;
+      infoAnexo.style.color = "#721c24";
+      this.value = "";
+    } else {
+      infoAnexo.textContent = `Selecionado: ${arquivo.name} (${tamanhoMB.toFixed(2)} MB)`;
+      infoAnexo.style.color = "#155724";
+    }
+  });
 
   // Atualiza a lista de e-mails conforme o Projeto selecionado
   selectProjeto.addEventListener("change", function() {
     const projetoSelecionado = this.value;
     
-    // Limpa as opções anteriores
     selectEmail.innerHTML = "";
 
     if (projetoSelecionado && EMAILS_POR_PROJETO[projetoSelecionado]) {
-      // Habilita e torna obrigatório
       selectEmail.disabled = false;
       selectEmail.required = true;
 
-      // Opção padrão
       const optPadrao = document.createElement("option");
       optPadrao.value = "";
       optPadrao.disabled = true;
@@ -231,7 +287,6 @@
       optPadrao.textContent = "Selecione o e-mail validador...";
       selectEmail.appendChild(optPadrao);
 
-      // Adiciona os e-mails correspondentes ao projeto
       EMAILS_POR_PROJETO[projetoSelecionado].forEach(email => {
         const option = document.createElement("option");
         option.value = email;
@@ -250,31 +305,36 @@
     }
   });
 
-  // 1. Busca o próximo número de solicitação assim que a página abre
-  async function carregarProtocolo() {
-    spanProtocolo.innerText = "Gerando código...";
-    try {
-      const resposta = await fetch(URL_SCRIPT);
-      const dados = await resposta.json();
-      spanProtocolo.innerText = dados.protocolo;
-    } catch (erro) {
-      spanProtocolo.innerText = "SOL-XXXX (Será gerado ao enviar)";
-    }
-  }
-
-  // Executa ao abrir a página
-  carregarProtocolo();
-
-  // 2. Envia os dados quando o usuário clica em "Enviar"
+  // Envia os dados quando o usuário clica em "Enviar"
   form.addEventListener("submit", async function(e) {
     e.preventDefault();
     
-    // Validação extra de segurança para Projeto e E-mail
     if (!selectProjeto.value || !selectEmail.value) {
       msgStatus.className = "erro";
       msgStatus.innerText = "Por favor, selecione o Projeto e o E-mail para validação.";
       msgStatus.style.display = "block";
       return;
+    }
+
+    if (!inputSetor.value.trim()) {
+      msgStatus.className = "erro";
+      msgStatus.innerText = "O campo Setor / Ordem de Serviço (OS) deve estar preenchido para prosseguir.";
+      msgStatus.style.display = "block";
+      inputSetor.focus();
+      return;
+    }
+
+    let dadosAnexo = null;
+    const arquivoSelecionado = inputAnexo.files[0];
+    if (arquivoSelecionado) {
+      const tamanhoMB = arquivoSelecionado.size / (1024 * 1024);
+      if (tamanhoMB > TAMANHO_MAX_MB) {
+        msgStatus.className = "erro";
+        msgStatus.innerText = `O anexo excede o limite de ${TAMANHO_MAX_MB} MB.`;
+        msgStatus.style.display = "block";
+        return;
+      }
+      dadosAnexo = await lerArquivoComoBase64(arquivoSelecionado);
     }
 
     btnEnviar.disabled = true;
@@ -285,10 +345,11 @@
       solicitante: document.getElementById("solicitante").value,
       projeto: selectProjeto.value,
       emailValidacao: selectEmail.value,
-      setor: document.getElementById("setor").value,
+      setor: inputSetor.value,
       material: document.getElementById("material").value,
       quantidade: document.getElementById("quantidade").value,
-      observacoes: document.getElementById("observacoes").value
+      observacoes: document.getElementById("observacoes").value,
+      anexo: dadosAnexo // null se não houver arquivo, ou { nome, tipo, base64 }
     };
 
     try {
@@ -303,13 +364,15 @@
         msgStatus.className = "sucesso";
         msgStatus.innerText = `Solicitação enviada com sucesso! Protocolo registrado: ${resultado.protocolo}`;
         msgStatus.style.display = "block";
-        form.reset();
         
-        // Reseta o campo de e-mail para o estado bloqueado inicial
+        spanProtocolo.innerText = resultado.protocolo;
+        
+        form.reset();
+        infoAnexo.textContent = `Tamanho máximo recomendado: ${TAMANHO_MAX_MB} MB.`;
+        infoAnexo.style.color = "#6c757d";
+        
         selectEmail.disabled = true;
         selectEmail.innerHTML = '<option value="" disabled selected>Selecione primeiro um Projeto...</option>';
-        
-        carregarProtocolo(); // Atualiza para o próximo número na tela
       } else {
         throw new Error(resultado.mensagem);
       }
